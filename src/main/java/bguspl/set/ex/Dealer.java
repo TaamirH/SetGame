@@ -2,6 +2,7 @@ package bguspl.set.ex;
 
 import bguspl.set.Env;
 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -75,8 +76,11 @@ public class Dealer implements Runnable {
     /**
      * Called when the game should be terminated.
      */
-    public void terminate() {
-        // TODO implement
+    public synchronized void terminate() {
+        terminate=true;
+        for (int i=0;i<players.length;i++){
+            players[i].terminate();
+        }
     }
 
     /**
@@ -105,8 +109,13 @@ public class Dealer implements Runnable {
     /**
      * Sleep for a fixed amount of time or until the thread is awakened for some purpose.
      */
-    private void sleepUntilWokenOrTimeout() {
-        // TODO implement
+    private synchronized void sleepUntilWokenOrTimeout() {
+        try {
+            wait(100);
+        }
+        catch (InterruptedException e){
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**
@@ -120,13 +129,42 @@ public class Dealer implements Runnable {
      * Returns all the cards from the table to the deck.
      */
     private void removeAllCardsFromTable() {
-        // TODO implement
+        synchronized (table) { // Synchronize to ensure consistency
+            // Retrieve card-to-slot mappings from the table
+            Integer[] cardToSlot = table.getCardToSlot();
+    
+            // Return the cards to the dealer's deck
+            for (int slot = 0; slot < cardToSlot.length; slot++) {
+                Integer card = cardToSlot[slot];
+                if (card != null) {
+                    table.removeCard(slot);
+                    deck.add(card);
+                }
+            }
+        }
     }
 
     /**
      * Check who is/are the winner/s and displays them.
      */
     private void announceWinners() {
-        // TODO implement
+        int max = -1;
+        LinkedList<Integer> winners = new LinkedList<Integer>();
+        for (Player player:players){
+            if (player.score()>max){
+                max =player.score();
+                winners.clear();
+                winners.add(player.id);
+            }
+            else if (player.score()==max)
+                winners.add(player.id);
+        }
+        if (!winners.isEmpty()) {
+            System.out.print("The winner(s) is/are Player");
+            for (int winnerId : winners) {
+                System.out.print(" " + winnerId);
+            }
+            System.out.println();
+        }   
     }
 }

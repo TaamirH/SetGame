@@ -1,5 +1,8 @@
 package bguspl.set.ex;
 
+import java.util.LinkedList;
+
+import bguspl.set.Config;
 import bguspl.set.Env;
 
 /**
@@ -50,6 +53,11 @@ public class Player implements Runnable {
      */
     private int score;
 
+    private boolean isFrozen;
+
+    private long freezeStartTime;
+
+    public LinkedList<Integer> tokens; ///// not sure about this maybe needs to be a queue
     /**
      * The class constructor.
      *
@@ -64,6 +72,8 @@ public class Player implements Runnable {
         this.table = table;
         this.id = id;
         this.human = human;
+        this.isFrozen=false;
+        tokens = new LinkedList<Integer>(); ///// not sure about this maybe needs to be a queue
     }
 
     /**
@@ -104,8 +114,21 @@ public class Player implements Runnable {
     /**
      * Called when the game should be terminated.
      */
-    public void terminate() {
-        // TODO implement
+    public synchronized void terminate() {
+        terminate=true;
+        try{
+            if(playerThread!=null){
+                env.logger.info("thread " + Thread.currentThread().getName() + " terminating.");
+                playerThread.join();}
+            if (aiThread!=null){
+                env.logger.info("thread " + Thread.currentThread().getName() + " terminating.");
+                aiThread.interrupt();
+                aiThread.join();}
+            }
+        catch (InterruptedException e){
+            Thread.currentThread().interrupt();
+        };
+        
     }
 
     /**
@@ -124,20 +147,46 @@ public class Player implements Runnable {
      * @post - the player's score is updated in the ui.
      */
     public void point() {
-        // TODO implement
-
         int ignored = table.countCards(); // this part is just for demonstration in the unit tests
-        env.ui.setScore(id, ++score);
-    }
+        score++;
+        env.ui.setScore(id, score);
+        env.ui.setFreeze(id,env.config.pointFreezeMillis);
+        freezeStartTime=System.currentTimeMillis();
+        isFrozen=true;
+        while (System.currentTimeMillis() < freezeStartTime + env.config.pointFreezeMillis) {
+            try{
+                Thread.sleep(env.config.pointFreezeMillis);}
+            catch(InterruptedException e){
+                Thread.currentThread().interrupt();
+            };
 
+        }
+        isFrozen=false;
+    }
     /**
      * Penalize a player and perform other related actions.
      */
     public void penalty() {
-        // TODO implement
+        env.ui.setFreeze(id, env.config.penaltyFreezeMillis);
+        freezeStartTime=System.currentTimeMillis();
+        isFrozen=true;
+        while (System.currentTimeMillis() < freezeStartTime + env.config.pointFreezeMillis) {
+            try{
+                Thread.sleep(env.config.penaltyFreezeMillis);}
+            catch (InterruptedException e){
+                Thread.currentThread().interrupt();
+            };
+        }
+        isFrozen=false;
     }
 
     public int score() {
         return score;
     }
+
+    public void addToken(int token){
+        tokens.add(token);
+
+    }
+    
 }

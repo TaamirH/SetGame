@@ -93,8 +93,7 @@ public class Table {
 
         cardToSlot[card] = slot;
         slotToCard[slot] = card;
-
-        // TODO implement
+        env.ui.placeCard(card, slot);
     }
 
     /**
@@ -105,8 +104,11 @@ public class Table {
         try {
             Thread.sleep(env.config.tableDelayMillis);
         } catch (InterruptedException ignored) {}
+        int card = slotToCard[slot];
+        cardToSlot[card]=null;
+        slotToCard[slot]=null;
+        env.ui.removeCard(slot);
 
-        // TODO implement
     }
 
     /**
@@ -115,7 +117,10 @@ public class Table {
      * @param slot   - the slot on which to place the token.
      */
     public void placeToken(int player, int slot) {
-        // TODO implement
+        env.ui.placeToken(player, slot);
+        int card = slotToCard[slot];
+        /// not done at all
+        /// pay attention - cannot be placed on empty spot
     }
 
     /**
@@ -127,5 +132,8 @@ public class Table {
     public boolean removeToken(int player, int slot) {
         // TODO implement
         return false;
+    }
+    public Integer[] getCardToSlot(){
+        return cardToSlot;
     }
 }
