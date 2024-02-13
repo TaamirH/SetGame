@@ -2,10 +2,14 @@ package bguspl.set.ex;
 
 import bguspl.set.Env;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.Iterator;
+
 
 /**
  * This class manages the dealer's threads and data
@@ -103,8 +107,42 @@ public class Dealer implements Runnable {
      * Check if any cards can be removed from the deck and placed on the table.
      */
     private void placeCardsOnTable() {
-        // TODO implement
+        synchronized (table) {
+            // Retrieve card-to-slot mappings from the table
+            Integer[] cardToSlot = table.getCardToSlot();
+    
+            // Maintain a list of empty slots
+            List<Integer> emptySlots = findEmptySlots(cardToSlot);
+    
+            // Use an iterator to safely remove cards from the deck
+            Iterator<Integer> deckIterator = deck.iterator();
+    
+            // Iterate through the deck and place cards in available empty slots
+            while (deckIterator.hasNext() && !emptySlots.isEmpty()) {
+                Integer card = deckIterator.next();
+                int emptySlot = emptySlots.remove(0); // Get and remove the first empty slot
+                table.placeCard(card, emptySlot);
+                deckIterator.remove(); // Safely remove the card from the deck
+            }
+        }
     }
+        
+        /**
+         * Find an empty slot in the card-to-slot mappings.
+         *
+         * @param cardToSlot The array representing card-to-slot mappings.
+         * @return The index of an empty slot or Table.NO_SLOT_AVAILABLE if no empty slot is found.
+         */
+    private List<Integer> findEmptySlots(Integer[] cardToSlot) {
+        List<Integer> emptySlots = new ArrayList<>();
+            for (int i = 0; i < cardToSlot.length; i++) {
+                if (cardToSlot[i] == null) {
+                    emptySlots.add(i);
+                }
+            }
+        return emptySlots;
+}
+
 
     /**
      * Sleep for a fixed amount of time or until the thread is awakened for some purpose.
@@ -165,6 +203,20 @@ public class Dealer implements Runnable {
                 System.out.print(" " + winnerId);
             }
             System.out.println();
-        }   
+        }
+        //check if this is actually needed
+        Integer[] aWinners = winners.toArray(new Integer[0]);
+        int[] intWinners = Arrays.stream(aWinners).mapToInt(Integer::intValue).toArray();
+        env.ui.announceWinner(intWinners); 
+    }
+
+    public boolean testSet(int[] cards,int id) {
+        if( env.util.testSet(cards)){
+            players[id].point();
+            return true;
+        }
+        else{
+            players[id].penalty();
+            return false;}
     }
 }

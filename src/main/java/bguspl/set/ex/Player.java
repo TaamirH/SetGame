@@ -1,9 +1,15 @@
 package bguspl.set.ex;
-
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import bguspl.set.Config;
 import bguspl.set.Env;
+import scala.collection.immutable.Queue;
 
 /**
  * This class manages the players' threads and data
@@ -17,6 +23,8 @@ public class Player implements Runnable {
      * The game environment object.
      */
     private final Env env;
+
+    private final Dealer dealer;
 
     /**
      * Game entities.
@@ -57,7 +65,7 @@ public class Player implements Runnable {
 
     private long freezeStartTime;
 
-    public LinkedList<Integer> tokens; ///// not sure about this maybe needs to be a queue
+    private ConcurrentLinkedQueue<Integer> actions;
     /**
      * The class constructor.
      *
@@ -69,11 +77,12 @@ public class Player implements Runnable {
      */
     public Player(Env env, Dealer dealer, Table table, int id, boolean human) {
         this.env = env;
+        this.dealer=dealer;
         this.table = table;
         this.id = id;
         this.human = human;
         this.isFrozen=false;
-        tokens = new LinkedList<Integer>(); ///// not sure about this maybe needs to be a queue
+        this.actions = new ConcurrentLinkedQueue<>();
     }
 
     /**
@@ -137,8 +146,51 @@ public class Player implements Runnable {
      * @param slot - the slot corresponding to the key pressed.
      */
     public void keyPressed(int slot) {
-        // TODO implement
+        if (isFrozen) {
+            env.logger.warning( "Player " + id + " is frozen and cannot perform any action.");
+            return;
+        }
+        if (actionsIsFull()) {
+            env.logger.warning( "Player " + id + " cannot perform any more actions.");
+            return;
+        }
+        actions.add(slot);
+
     }
+    private synchronized void processQueue(){
+        while (!actions.isEmpty()){
+            boolean removed = false;
+            boolean isSetChecked = false;
+            int action = actions.poll();
+            for (int i=0;i<table.tokensPerPlayer.length;i++){
+                if (action == table.tokensPerPlayer[id][i]){
+                    table.removeToken(id, action);
+                    removed = true;
+                    break;
+                }
+            }
+            if (!removed){
+                table.placeToken(id, action);
+                if (table.tokensPerPlayer[id][2] != null){
+                    int[] tokens = Arrays.stream(table.tokensPerPlayer[id])
+                                        .mapToInt(Integer::intValue)
+                                        .toArray();
+                    while (!isSetChecked){
+                        try {
+                            wait();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                        dealer.testSet(tokens,id);
+                        isSetChecked = true;
+                        notifyAll();
+                    }
+                }
+            }
+
+        }
+    }
+    
 
     /**
      * Award a point to a player and perform other related actions.
@@ -184,9 +236,25 @@ public class Player implements Runnable {
         return score;
     }
 
-    public void addToken(int token){
-        tokens.add(token);
+    public boolean addAction(int actionID) {
+        // Check if capacity is reached
+        if (actionsIsFull()) {
+            return false; // Maximum capacity reached
+        }
 
+        return actions.add(actionID); // Add action and return true if successful
+    }
+
+    public boolean removeAction(int actionID) {
+        return actions.remove(actionID); // Remove action and return true if successful
+    }
+
+    public List<Integer> getActions() {
+        return new ArrayList<>(actions); // Return a copy of the actions
+    }
+
+    public boolean actionsIsFull() {
+        return actions.size() == 3; // Check if maximum capacity is reached
     }
     
 }

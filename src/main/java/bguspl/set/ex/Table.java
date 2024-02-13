@@ -29,6 +29,10 @@ public class Table {
      */
     protected final Integer[] cardToSlot; // slot per card (if any)
 
+    public Integer [] []  tokensPerPlayer; // an array of arrays, each array contains the slots of the player's tokens; the index of the array is the player's id ,
+    // the value of the array is the slots of the player's tokens;
+
+
     /**
      * Constructor for testing.
      *
@@ -51,6 +55,7 @@ public class Table {
     public Table(Env env) {
 
         this(env, new Integer[env.config.tableSize], new Integer[env.config.deckSize]);
+        tokensPerPlayer = new Integer[env.config.players][3];
     }
 
     /**
@@ -117,10 +122,16 @@ public class Table {
      * @param slot   - the slot on which to place the token.
      */
     public void placeToken(int player, int slot) {
+      synchronized(tokensPerPlayer[player]){  
         env.ui.placeToken(player, slot);
-        int card = slotToCard[slot];
-        /// not done at all
-        /// pay attention - cannot be placed on empty spot
+        for (int i=0;i<3;i++){
+            if (tokensPerPlayer[player][i]==null){
+                tokensPerPlayer[player][i]=slot;
+                break;
+            }
+        }
+
+        }
     }
 
     /**
@@ -130,9 +141,17 @@ public class Table {
      * @return       - true iff a token was successfully removed.
      */
     public boolean removeToken(int player, int slot) {
-        // TODO implement
+        synchronized (tokensPerPlayer[player]){
+            env.ui.removeToken(player, slot);
+            for (int i=2;i>=0;i--){
+                if (tokensPerPlayer[player][i]!=null && tokensPerPlayer[player][i]==slot){
+                    tokensPerPlayer[player][i]=null;
+                    return true;
+                }
+            }
         return false;
     }
+}
     public Integer[] getCardToSlot(){
         return cardToSlot;
     }
