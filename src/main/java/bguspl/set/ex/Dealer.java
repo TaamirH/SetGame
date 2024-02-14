@@ -109,37 +109,44 @@ public class Dealer implements Runnable {
     private void placeCardsOnTable() {
         synchronized (table) {
             // Retrieve card-to-slot mappings from the table
-            Integer[] cardToSlot = table.getCardToSlot();
+            Integer[] slotToCard = table.getSlotToCard();
+            System.out.println(Arrays.toString(slotToCard));
     
             // Maintain a list of empty slots
-            List<Integer> emptySlots = findEmptySlots(cardToSlot);
+            List<Integer> emptySlots = findEmptySlots(slotToCard);
+            System.out.println(emptySlots);
     
             // Use an iterator to safely remove cards from the deck
             Iterator<Integer> deckIterator = deck.iterator();
     
             // Iterate through the deck and place cards in available empty slots
             while (deckIterator.hasNext() && !emptySlots.isEmpty()) {
+                System.out.println("Empty slots: " + emptySlots.size() + " Deck size: " + deck.size());
                 Integer card = deckIterator.next();
                 int emptySlot = emptySlots.remove(0); // Get and remove the first empty slot
+                System.out.println("Placing card " + card + " in slot " + emptySlot);
                 table.placeCard(card, emptySlot);
-                deckIterator.remove(); // Safely remove the card from the deck
+                deckIterator.remove();
+                System.out.println(emptySlots.isEmpty());
+
             }
         }
     }
-        
+
         /**
          * Find an empty slot in the card-to-slot mappings.
          *
          * @param cardToSlot The array representing card-to-slot mappings.
          * @return The index of an empty slot or Table.NO_SLOT_AVAILABLE if no empty slot is found.
          */
-    private List<Integer> findEmptySlots(Integer[] cardToSlot) {
+    private List<Integer> findEmptySlots(Integer[] slotToCard) {
         List<Integer> emptySlots = new ArrayList<>();
-            for (int i = 0; i < cardToSlot.length; i++) {
-                if (cardToSlot[i] == null) {
+            for (int i = 0; i < slotToCard.length; i++) {
+                if (slotToCard[i] == null) {
                     emptySlots.add(i);
                 }
             }
+        System.out.println("Empty slots: " + emptySlots.size());
         return emptySlots;
 }
 
@@ -149,7 +156,7 @@ public class Dealer implements Runnable {
      */
     private synchronized void sleepUntilWokenOrTimeout() {
         try {
-            wait(100);
+            wait(5000);
         }
         catch (InterruptedException e){
             Thread.currentThread().interrupt();

@@ -1,15 +1,13 @@
 package bguspl.set.ex;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
+import java.util.Random;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import bguspl.set.Config;
 import bguspl.set.Env;
-import scala.collection.immutable.Queue;
 
 /**
  * This class manages the players' threads and data
@@ -91,11 +89,12 @@ public class Player implements Runnable {
     @Override
     public void run() {
         playerThread = Thread.currentThread();
-        env.logger.info("thread " + Thread.currentThread().getName() + " starting.");
+        env.logger.info("thread " + Thread.currentThread().getName() + " starting."+ "player id: "+id);
         if (!human) createArtificialIntelligence();
 
         while (!terminate) {
-            // TODO implement main player loop
+            processQueue();
+            
         }
         if (!human) try { aiThread.join(); } catch (InterruptedException ignored) {}
         env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
@@ -110,7 +109,8 @@ public class Player implements Runnable {
         aiThread = new Thread(() -> {
             env.logger.info("thread " + Thread.currentThread().getName() + " starting.");
             while (!terminate) {
-                // TODO implement player key press simulator
+                    int randomKeyPress = generateRandomKeyPress();
+                    keyPressed(randomKeyPress);
                 try {
                     synchronized (this) { wait(); }
                 } catch (InterruptedException ignored) {}
@@ -118,6 +118,12 @@ public class Player implements Runnable {
             env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
         }, "computer-" + id);
         aiThread.start();
+    }
+    private int generateRandomKeyPress() {
+        int howmany = table.countCards();
+        if (howmany>=0)
+            return new Random().nextInt(howmany+1);
+        return 0;
     }
 
     /**

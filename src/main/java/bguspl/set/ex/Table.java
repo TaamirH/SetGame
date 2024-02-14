@@ -92,10 +92,10 @@ public class Table {
      * @post - the card placed is on the table, in the assigned slot.
      */
     public void placeCard(int card, int slot) {
+        
         try {
             Thread.sleep(env.config.tableDelayMillis);
         } catch (InterruptedException ignored) {}
-
         cardToSlot[card] = slot;
         slotToCard[slot] = card;
         env.ui.placeCard(card, slot);
@@ -154,5 +154,8 @@ public class Table {
 }
     public Integer[] getCardToSlot(){
         return cardToSlot;
+    }
+    public Integer[] getSlotToCard(){
+        return slotToCard;
     }
 }
