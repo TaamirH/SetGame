@@ -152,6 +152,7 @@ public class Player implements Runnable {
      * @param slot - the slot corresponding to the key pressed.
      */
     public void keyPressed(int slot) {
+        
         if (isFrozen) {
             env.logger.warning( "Player " + id + " is frozen and cannot perform any action.");
             return;
@@ -160,6 +161,8 @@ public class Player implements Runnable {
             env.logger.warning( "Player " + id + " cannot perform any more actions.");
             return;
         }
+        env.logger.warning( "Player " + id + " placed into actions "+ slot);
+
         actions.add(slot);
 
     }
@@ -167,9 +170,11 @@ public class Player implements Runnable {
         while (!actions.isEmpty()){
             boolean removed = false;
             boolean isSetChecked = false;
+            env.logger.warning( "Player " + id + " before poll, action size:" + actions.size());
             int action = actions.poll();
+            env.logger.warning( "Player " + id + " after poll, action size:" + actions.size());
             for (int i=0;i<table.tokensPerPlayer.length;i++){
-                if (action == table.tokensPerPlayer[id][i]){
+                if ((table.tokensPerPlayer[id][i]!=null)&&(action == table.tokensPerPlayer[id][i])){
                     table.removeToken(id, action);
                     removed = true;
                     break;

@@ -1,6 +1,7 @@
 package bguspl.set.ex;
 
 import bguspl.set.Env;
+import bguspl.set.ThreadLogger;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,6 +58,9 @@ public class Dealer implements Runnable {
         env.logger.info("thread " + Thread.currentThread().getName() + " starting.");
         while (!shouldFinish()) {
             placeCardsOnTable();
+            for (Player player:players){
+                new Thread(player).run(); // not good
+            }
             timerLoop();
             updateTimerDisplay(false);
             removeAllCardsFromTable();
