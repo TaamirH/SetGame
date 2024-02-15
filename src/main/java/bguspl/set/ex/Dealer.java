@@ -56,11 +56,12 @@ public class Dealer implements Runnable {
     @Override
     public void run() {
         env.logger.info("thread " + Thread.currentThread().getName() + " starting.");
+        placeCardsOnTable();
+        for (Player player : players) {
+            Thread playerThread = new Thread(player);
+            playerThread.start();
+        }
         while (!shouldFinish()) {
-            placeCardsOnTable();
-            for (Player player:players){
-                new Thread(player).run(); // not good
-            }
             timerLoop();
             updateTimerDisplay(false);
             removeAllCardsFromTable();
@@ -221,13 +222,14 @@ public class Dealer implements Runnable {
         env.ui.announceWinner(intWinners); 
     }
 
-    public boolean testSet(int[] cards,int id) {
+    public void testSet(int[] cards,int id) { //IMPORTANT: take care of removing tokens 
+        System.out.println("Testing set for player " + id);
         if( env.util.testSet(cards)){
             players[id].point();
-            return true;
         }
         else{
             players[id].penalty();
-            return false;}
     }
+       
+}
 }

@@ -92,7 +92,7 @@ public class Player implements Runnable {
         env.logger.info("thread " + Thread.currentThread().getName() + " starting."+ "player id: "+id);
         if (!human) createArtificialIntelligence();
 
-        while (!terminate) {
+        while (!terminate ) {
             processQueue();
             
         }
@@ -129,12 +129,13 @@ public class Player implements Runnable {
     /**
      * Called when the game should be terminated.
      */
-    public synchronized void terminate() {
+    public void terminate() {
         terminate=true;
         try{
             if(playerThread!=null){
                 env.logger.info("thread " + Thread.currentThread().getName() + " terminating.");
-                playerThread.join();}
+                playerThread.join();
+            }
             if (aiThread!=null){
                 env.logger.info("thread " + Thread.currentThread().getName() + " terminating.");
                 aiThread.interrupt();
@@ -161,13 +162,13 @@ public class Player implements Runnable {
             env.logger.warning( "Player " + id + " cannot perform any more actions.");
             return;
         }
-        env.logger.warning( "Player " + id + " placed into actions "+ slot);
+        env.logger.warning( "Player " + id + " placed into actions in slot :"+ slot);
 
         actions.add(slot);
 
     }
     private synchronized void processQueue(){
-        while (!actions.isEmpty()){
+        while (!actions.isEmpty() && !terminate){
             boolean removed = false;
             boolean isSetChecked = false;
             env.logger.warning( "Player " + id + " before poll, action size:" + actions.size());
@@ -186,15 +187,14 @@ public class Player implements Runnable {
                     int[] tokens = Arrays.stream(table.tokensPerPlayer[id])
                                         .mapToInt(Integer::intValue)
                                         .toArray();
+                    for (int i=0;i<tokens.length;i++){
+                        System.out.println("Player " + id + " token " + i + " : " + tokens[i]);
+                    }
                     while (!isSetChecked){
-                        try {
-                            wait();
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                        }
+                        System.out.println("Player " + id + " is checking for set");
                         dealer.testSet(tokens,id);
                         isSetChecked = true;
-                        notifyAll();
+                    //IMPORTANT : take care of removing tokens
                     }
                 }
             }
@@ -214,10 +214,12 @@ public class Player implements Runnable {
         score++;
         env.ui.setScore(id, score);
         env.ui.setFreeze(id,env.config.pointFreezeMillis);
+        env.logger.warning( "Player " + id + " is frozen and cannot perform any action.");
         freezeStartTime=System.currentTimeMillis();
         isFrozen=true;
         while (System.currentTimeMillis() < freezeStartTime + env.config.pointFreezeMillis) {
             try{
+                env.logger.warning( "Player " + id + " is frozen and cannot perform any action.");
                 Thread.sleep(env.config.pointFreezeMillis);}
             catch(InterruptedException e){
                 Thread.currentThread().interrupt();
@@ -231,9 +233,11 @@ public class Player implements Runnable {
      */
     public void penalty() {
         env.ui.setFreeze(id, env.config.penaltyFreezeMillis);
+        env.logger.warning( "Player " + id + " is frozen and cannot perform any action.");
         freezeStartTime=System.currentTimeMillis();
         isFrozen=true;
         while (System.currentTimeMillis() < freezeStartTime + env.config.pointFreezeMillis) {
+            env.logger.warning( "Player " + id + " is frozen and cannot perform any action.");
             try{
                 Thread.sleep(env.config.penaltyFreezeMillis);}
             catch (InterruptedException e){

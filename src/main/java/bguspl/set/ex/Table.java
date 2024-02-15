@@ -122,6 +122,7 @@ public class Table {
      * @param slot   - the slot on which to place the token.
      */
     public void placeToken(int player, int slot) {
+        System.out.println("Player " + player + " placed token in slot " + slot);
       synchronized(tokensPerPlayer[player]){  
         env.ui.placeToken(player, slot);
         for (int i=0;i<3;i++){
@@ -141,6 +142,7 @@ public class Table {
      * @return       - true iff a token was successfully removed.
      */
     public boolean removeToken(int player, int slot) {
+        System.out.println("Player " + player + " removed token in slot " + slot);
         synchronized (tokensPerPlayer[player]){
             env.ui.removeToken(player, slot);
             for (int i=2;i>=0;i--){
