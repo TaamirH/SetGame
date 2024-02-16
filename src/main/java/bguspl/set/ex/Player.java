@@ -182,19 +182,28 @@ public class Player implements Runnable {
                 }
             }
             if (!removed){
+                boolean result = false;
                 table.placeToken(id, action);
                 if (table.tokensPerPlayer[id][2] != null){
                     int[] tokens = Arrays.stream(table.tokensPerPlayer[id])
                                         .mapToInt(Integer::intValue)
                                         .toArray();
+                    Integer [] slotToCard = table.getSlotToCard();
+                    int[] cards = new int[tokens.length];
                     for (int i=0;i<tokens.length;i++){
-                        System.out.println("Player " + id + " token " + i + " : " + tokens[i]);
+                        cards[i] = slotToCard[tokens[i]];
                     }
                     while (!isSetChecked){
                         System.out.println("Player " + id + " is checking for set");
-                        dealer.testSet(tokens,id);
+                        result = dealer.testSet(cards,id);
                         isSetChecked = true;
-                    //IMPORTANT : take care of removing tokens
+
+                    }
+                    for (int i=0;i<table.tokensPerPlayer[id].length;i++){
+                        table.removeToken(id, table.tokensPerPlayer[id][i]);}
+                    if (result){
+
+
                     }
                 }
             }
@@ -226,26 +235,60 @@ public class Player implements Runnable {
             };
 
         }
+        env.ui.setFreeze(id, 0);
         isFrozen=false;
+    }
+
+    public void penalty() {
+        long penaltyDuration = env.config.penaltyFreezeMillis;
+        env.ui.setFreeze(id, penaltyDuration);
+        env.logger.warning("Player " + id + " is frozen and cannot perform any action.");
+        freezeStartTime = System.currentTimeMillis();
+        isFrozen = true;
+    
+        long lastDisplayedSecond = penaltyDuration / 1000;
+    
+        while (System.currentTimeMillis() < freezeStartTime + penaltyDuration) {
+            long remainingTime = freezeStartTime + penaltyDuration - System.currentTimeMillis();
+            long remainingSeconds = remainingTime / 1000;
+    
+            // Update UI only when the second changes
+            if (remainingSeconds != lastDisplayedSecond) {
+                env.ui.setFreeze(id, remainingTime);
+                lastDisplayedSecond = remainingSeconds;
+            }
+    
+            try {
+                Thread.sleep(100); // Sleep for a short duration
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    
+        isFrozen = false;
+        env.ui.setFreeze(id, 0);
     }
     /**
      * Penalize a player and perform other related actions.
      */
-    public void penalty() {
-        env.ui.setFreeze(id, env.config.penaltyFreezeMillis);
-        env.logger.warning( "Player " + id + " is frozen and cannot perform any action.");
-        freezeStartTime=System.currentTimeMillis();
-        isFrozen=true;
-        while (System.currentTimeMillis() < freezeStartTime + env.config.pointFreezeMillis) {
-            env.logger.warning( "Player " + id + " is frozen and cannot perform any action.");
-            try{
-                Thread.sleep(env.config.penaltyFreezeMillis);}
-            catch (InterruptedException e){
-                Thread.currentThread().interrupt();
-            };
-        }
-        isFrozen=false;
-    }
+    // public void penalty() {
+    //     env.ui.setFreeze(id, env.config.penaltyFreezeMillis);
+    //     env.logger.warning( "Player " + id + " is frozen and cannot perform any action.");
+    //     freezeStartTime=System.currentTimeMillis();
+    //     isFrozen=true;
+    //     while (System.currentTimeMillis() < freezeStartTime + env.config.penaltyFreezeMillis) {
+    //         env.logger.warning( "Player " + id + " is frozen and cannot perform any action.");
+    //         System.out.println("Player " + id + " is frozen and cannot perform any action.");
+    //         try{
+    //             Thread.sleep(env.config.penaltyFreezeMillis);}
+    //         catch (InterruptedException e){
+    //             Thread.currentThread().interrupt();
+    //         };
+    //     }
+    //     isFrozen=false;
+    //     env.ui.setFreeze(id, 0);
+    // }
+
 
     public int score() {
         return score;

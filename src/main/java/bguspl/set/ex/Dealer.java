@@ -56,6 +56,7 @@ public class Dealer implements Runnable {
     @Override
     public void run() {
         env.logger.info("thread " + Thread.currentThread().getName() + " starting.");
+        ShuffleDeck();
         placeCardsOnTable();
         for (Player player : players) {
             Thread playerThread = new Thread(player);
@@ -78,6 +79,7 @@ public class Dealer implements Runnable {
             sleepUntilWokenOrTimeout();
             updateTimerDisplay(false);
             removeCardsFromTable();
+            ShuffleDeck();
             placeCardsOnTable();
         }
     }
@@ -106,13 +108,14 @@ public class Dealer implements Runnable {
      */
     private void removeCardsFromTable() {
         // TODO implement
-    }
+    } 
 
     /**
      * Check if any cards can be removed from the deck and placed on the table.
      */
     private void placeCardsOnTable() {
         synchronized (table) {
+          
             // Retrieve card-to-slot mappings from the table
             Integer[] slotToCard = table.getSlotToCard();
             System.out.println(Arrays.toString(slotToCard));
@@ -135,6 +138,7 @@ public class Dealer implements Runnable {
                 System.out.println(emptySlots.isEmpty());
 
             }
+           
         }
     }
 
@@ -161,7 +165,7 @@ public class Dealer implements Runnable {
      */
     private synchronized void sleepUntilWokenOrTimeout() {
         try {
-            wait(5000);
+            wait(3000);
         }
         catch (InterruptedException e){
             Thread.currentThread().interrupt();
@@ -222,14 +226,31 @@ public class Dealer implements Runnable {
         env.ui.announceWinner(intWinners); 
     }
 
-    public void testSet(int[] cards,int id) { //IMPORTANT: take care of removing tokens 
+    public boolean testSet(int[] cards,int id) { 
         System.out.println("Testing set for player " + id);
+        for (int i=0;i<3;i++){
+            System.out.println(cards[i]);
+        }
         if( env.util.testSet(cards)){
+            System.out.println("Player " + id + " has a set");
             players[id].point();
+            updateTimerDisplay(true);
+            return true;
         }
         else{
+            System.out.println("Player " + id + " does not have a set");
             players[id].penalty();
+            return false;
     }
        
 }
+    public void ShuffleDeck(){
+        synchronized(deck){
+        for (int i=0;i<deck.size();i++){
+            int randomIndex = (int) (Math.random() * deck.size());
+            int temp = deck.get(i);
+            deck.set(i,deck.get(randomIndex));
+            deck.set(randomIndex,temp);
+        }}
+    }
 }
