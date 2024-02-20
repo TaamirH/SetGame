@@ -113,7 +113,6 @@ public class Table {
         cardToSlot[card]=null;
         slotToCard[slot]=null;
         env.ui.removeCard(slot);
-
     }
 
     /**
@@ -123,6 +122,7 @@ public class Table {
      */
     public void placeToken(int player, int slot) {
         System.out.println("Player " + player + " placed token in slot " + slot);
+      if (slot >= 0 && slot <= 11){  
       synchronized(tokensPerPlayer[player]){  
         env.ui.placeToken(player, slot);
         for (int i=0;i<3;i++){
@@ -134,6 +134,9 @@ public class Table {
 
         }
     }
+    else {
+        env.logger.info("slot " + slot + " is invalid.");
+    }}
 
     /**
      * Removes a token of a player from a grid slot.

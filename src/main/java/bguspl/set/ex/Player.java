@@ -111,8 +111,9 @@ public class Player implements Runnable {
             while (!terminate) {
                     int randomKeyPress = generateRandomKeyPress();
                     keyPressed(randomKeyPress);
+
                 try {
-                    synchronized (this) { wait(); }
+                    synchronized (this) { Thread.sleep(200); }
                 } catch (InterruptedException ignored) {}
             }
             env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
@@ -191,7 +192,19 @@ public class Player implements Runnable {
                     Integer [] slotToCard = table.getSlotToCard();
                     int[] cards = new int[tokens.length];
                     for (int i=0;i<tokens.length;i++){
-                        cards[i] = slotToCard[tokens[i]];
+                        if (slotToCard[tokens[i]]!=null)
+                            cards[i] = slotToCard[tokens[i]];
+                        else{
+                            // Dealer shuffled, remove all tokens and clear queue
+                            for (int j = 0; j < table.tokensPerPlayer[id].length; j++) {
+                                if (table.tokensPerPlayer[id][j] != null) {
+                                    table.removeToken(id, table.tokensPerPlayer[id][j]);
+                                }
+                            }
+                            actions.clear(); // Clear remaining actions after shuffle
+                            break;
+                        }
+                            
                     }
                     while (!isSetChecked){
                         System.out.println("Player " + id + " is checking for set");
@@ -200,10 +213,9 @@ public class Player implements Runnable {
 
                     }
                     for (int i=0;i<table.tokensPerPlayer[id].length;i++){
-                        table.removeToken(id, table.tokensPerPlayer[id][i]);}
-                    if (result){
-
-
+                        if (table.tokensPerPlayer[id][i]!=null){
+                            table.removeToken(id, table.tokensPerPlayer[id][i]);
+                        }
                     }
                 }
             }

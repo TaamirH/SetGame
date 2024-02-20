@@ -62,7 +62,11 @@ public class Dealer implements Runnable {
             Thread playerThread = new Thread(player);
             playerThread.start();
         }
+        updateTimerDisplay(true);
         while (!shouldFinish()) {
+            ShuffleDeck();
+            placeCardsOnTable(); 
+            updateTimerDisplay(true);
             timerLoop();
             updateTimerDisplay(false);
             removeAllCardsFromTable();
@@ -78,7 +82,6 @@ public class Dealer implements Runnable {
         while (!terminate && System.currentTimeMillis() < reshuffleTime) {
             sleepUntilWokenOrTimeout();
             updateTimerDisplay(false);
-            removeCardsFromTable();
             ShuffleDeck();
             placeCardsOnTable();
         }
@@ -107,7 +110,7 @@ public class Dealer implements Runnable {
      * Checks cards should be removed from the table and removes them.
      */
     private void removeCardsFromTable() {
-        // TODO implement
+        
     } 
 
     /**
@@ -165,7 +168,7 @@ public class Dealer implements Runnable {
      */
     private synchronized void sleepUntilWokenOrTimeout() {
         try {
-            wait(3000);
+            wait(950);
         }
         catch (InterruptedException e){
             Thread.currentThread().interrupt();
@@ -176,7 +179,14 @@ public class Dealer implements Runnable {
      * Reset and/or update the countdown and the countdown display.
      */
     private void updateTimerDisplay(boolean reset) {
-        // TODO implement
+        if (reset) {
+            reshuffleTime = System.currentTimeMillis() + env.config.turnTimeoutMillis;
+            env.ui.setCountdown(env.config.turnTimeoutMillis, false);
+        }
+        else {
+            long remainingTime = reshuffleTime - System.currentTimeMillis();
+            env.ui.setCountdown(remainingTime, remainingTime < env.config.turnTimeoutWarningMillis);
+        }
     }
 
     /**
@@ -185,11 +195,18 @@ public class Dealer implements Runnable {
     private void removeAllCardsFromTable() {
         synchronized (table) { // Synchronize to ensure consistency
             // Retrieve card-to-slot mappings from the table
-            Integer[] cardToSlot = table.getCardToSlot();
+            Integer[] slotToCard = table.getSlotToCard();
+            for (int i=0;i<table.tokensPerPlayer.length;i++){
+                for (int j=0;j<table.tokensPerPlayer[i].length;j++){
+                    if (table.tokensPerPlayer[i][j]!=null){
+                        table.removeToken(i,table.tokensPerPlayer[i][j]);
+                    }
+                }
+            }
     
             // Return the cards to the dealer's deck
-            for (int slot = 0; slot < cardToSlot.length; slot++) {
-                Integer card = cardToSlot[slot];
+            for (int slot = 0; slot < slotToCard.length; slot++) {
+                Integer card = slotToCard[slot];
                 if (card != null) {
                     table.removeCard(slot);
                     deck.add(card);
@@ -235,6 +252,28 @@ public class Dealer implements Runnable {
             System.out.println("Player " + id + " has a set");
             players[id].point();
             updateTimerDisplay(true);
+            //delete tokens of other people
+             for (int i=0;i<cards.length;i++){
+                if (table.getCardToSlot()[cards[i]]!=null){
+                    int slot = table.getCardToSlot()[cards[i]];
+                    for (int j=0;j<players.length;j++){
+                        if (j!=id){
+                            table.removeToken(j,slot);
+                        }
+                    }
+                    table.removeCard(slot);}
+                else    {
+                    // the cards were changed so we need to clear the tokens
+                    for (int j=0;j<players.length;j++){
+                        if (j!=id){
+                            for (int k=0;k<3;k++){
+                                if (table.tokensPerPlayer[j][k]!=null && table.tokensPerPlayer[j][k]==cards[i]){
+                                    table.removeToken(j,cards[i]);
+                                }
+                            }
+                        }
+                    }
+                }}
             return true;
         }
         else{
