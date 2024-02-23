@@ -132,6 +132,7 @@ public class Dealer implements Runnable {
     
             // Iterate through the deck and place cards in available empty slots
             while (deckIterator.hasNext() && !emptySlots.isEmpty()) {
+                env.logger.info(" Deck size: " + deck.size());
                 System.out.println("Empty slots: " + emptySlots.size() + " Deck size: " + deck.size());
                 Integer card = deckIterator.next();
                 int emptySlot = emptySlots.remove(0); // Get and remove the first empty slot
@@ -158,7 +159,6 @@ public class Dealer implements Runnable {
                     emptySlots.add(i);
                 }
             }
-        System.out.println("Empty slots: " + emptySlots.size());
         return emptySlots;
 }
 
@@ -243,7 +243,7 @@ public class Dealer implements Runnable {
         env.ui.announceWinner(intWinners); 
     }
 
-    public boolean testSet(int[] cards,int id) { 
+    public synchronized boolean testSet(int[] cards,int id) { 
         System.out.println("Testing set for player " + id);
         for (int i=0;i<3;i++){
             System.out.println(cards[i]);
@@ -259,6 +259,7 @@ public class Dealer implements Runnable {
                     for (int j=0;j<players.length;j++){
                         if (j!=id){
                             table.removeToken(j,slot);
+                            players[j].howmanytokens--;
                         }
                     }
                     table.removeCard(slot);}
@@ -269,6 +270,7 @@ public class Dealer implements Runnable {
                             for (int k=0;k<3;k++){
                                 if (table.tokensPerPlayer[j][k]!=null && table.tokensPerPlayer[j][k]==cards[i]){
                                     table.removeToken(j,cards[i]);
+                                    players[j].howmanytokens--;
                                 }
                             }
                         }
