@@ -64,6 +64,8 @@ public class Player implements Runnable {
     private long freezeStartTime;
 
     private ConcurrentLinkedQueue<Integer> actions;
+
+    public int howmanytokens;
     /**
      * The class constructor.
      *
@@ -81,6 +83,7 @@ public class Player implements Runnable {
         this.human = human;
         this.isFrozen=false;
         this.actions = new ConcurrentLinkedQueue<>();
+        this.howmanytokens=0;
     }
 
     /**
@@ -113,7 +116,7 @@ public class Player implements Runnable {
                     keyPressed(randomKeyPress);
 
                 try {
-                    synchronized (this) { Thread.sleep(200); }
+                    synchronized (this) { Thread.sleep(50); }
                 } catch (InterruptedException ignored) {}
             }
             env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
@@ -171,57 +174,46 @@ public class Player implements Runnable {
     private synchronized void processQueue(){
         while (!actions.isEmpty() && !terminate){
             boolean removed = false;
-            boolean isSetChecked = false;
-            env.logger.warning( "Player " + id + " before poll, action size:" + actions.size());
             int action = actions.poll();
-            env.logger.warning( "Player " + id + " after poll, action size:" + actions.size());
             for (int i=0;i<table.tokensPerPlayer.length;i++){
                 if ((table.tokensPerPlayer[id][i]!=null)&&(action == table.tokensPerPlayer[id][i])){
-                    table.removeToken(id, action);
-                    removed = true;
+                    removed = table.removeToken(id, action);
+                    howmanytokens--;
                     break;
                 }
             }
-            if (!removed){
-                boolean result = false;
-                table.placeToken(id, action);
-                if (table.tokensPerPlayer[id][2] != null){
-                    int[] tokens = Arrays.stream(table.tokensPerPlayer[id])
+            if (!removed && howmanytokens<3){
+                synchronized(table){
+                    boolean placed = table.placeToken(id, action);
+                    if (placed)
+                        howmanytokens++;
+                    for (int i=0;i<table.tokensPerPlayer[id].length;i++){
+                        System.out.println("token"+table.tokensPerPlayer[id][i]);
+                    }
+                    if (howmanytokens==3 & placed){
+                        
+                        int[] tokens = Arrays.stream(table.tokensPerPlayer[id])
                                         .mapToInt(Integer::intValue)
                                         .toArray();
-                    Integer [] slotToCard = table.getSlotToCard();
-                    int[] cards = new int[tokens.length];
-                    for (int i=0;i<tokens.length;i++){
-                        if (slotToCard[tokens[i]]!=null)
-                            cards[i] = slotToCard[tokens[i]];
-                        else{
-                            // Dealer shuffled, remove all tokens and clear queue
-                            for (int j = 0; j < table.tokensPerPlayer[id].length; j++) {
-                                if (table.tokensPerPlayer[id][j] != null) {
-                                    table.removeToken(id, table.tokensPerPlayer[id][j]);
-                                }
-                            }
-                            actions.clear(); // Clear remaining actions after shuffle
-                            break;
-                        }
-                            
-                    }
-                    while (!isSetChecked){
-                        System.out.println("Player " + id + " is checking for set");
-                        result = dealer.testSet(cards,id);
-                        isSetChecked = true;
+                        Integer [] slotToCard = table.getSlotToCard();
+                        int[] cards = new int[tokens.length];
+                        for (int i=0;i<tokens.length;i++){
+                            if (slotToCard[tokens[i]]!=null)
+                                cards[i] = slotToCard[tokens[i]];}
+                        dealer.testSet(cards,id);
 
-                    }
                     for (int i=0;i<table.tokensPerPlayer[id].length;i++){
                         if (table.tokensPerPlayer[id][i]!=null){
                             table.removeToken(id, table.tokensPerPlayer[id][i]);
-                        }
+                            
+                        }}
+                    howmanytokens=0;}}
                     }
                 }
             }
 
-        }
-    }
+        
+    
     
 
     /**
