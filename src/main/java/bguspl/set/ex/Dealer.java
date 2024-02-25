@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.Iterator;
@@ -43,11 +44,15 @@ public class Dealer implements Runnable {
      */
     private long reshuffleTime = Long.MAX_VALUE;
 
+    public ConcurrentLinkedQueue<Integer> WaitingForSet;
+ 
+
     public Dealer(Env env, Table table, Player[] players) {
         this.env = env;
         this.table = table;
         this.players = players;
         deck = IntStream.range(0, env.config.deckSize).boxed().collect(Collectors.toList());
+        this.WaitingForSet = new ConcurrentLinkedQueue<Integer>();
     }
 
     /**
@@ -82,8 +87,9 @@ public class Dealer implements Runnable {
         while (!terminate && System.currentTimeMillis() < reshuffleTime) {
             sleepUntilWokenOrTimeout();
             updateTimerDisplay(false);
-            ShuffleDeck();
-            placeCardsOnTable();
+            if(!WaitingForSet.isEmpty()){
+                testSet();
+            }
         }
     }
 
@@ -142,9 +148,8 @@ public class Dealer implements Runnable {
                 System.out.println(emptySlots.isEmpty());
 
             }
-           
-        }
     }
+}
 
         /**
          * Find an empty slot in the card-to-slot mappings.
@@ -202,6 +207,9 @@ public class Dealer implements Runnable {
                         table.removeToken(i,table.tokensPerPlayer[i][j]);
                     }
                 }
+                players[i].wasSetLegal=false;
+                players[i].actions.clear();
+                players[i].howmanytokens=0;
             }
     
             // Return the cards to the dealer's deck
@@ -243,48 +251,66 @@ public class Dealer implements Runnable {
         env.ui.announceWinner(intWinners); 
     }
 
-    public synchronized boolean testSet(int[] cards,int id) { 
-        System.out.println("Testing set for player " + id);
-        for (int i=0;i<3;i++){
-            System.out.println(cards[i]);
-        }
-        if( env.util.testSet(cards)){
-            System.out.println("Player " + id + " has a set");
-            players[id].point();
-            updateTimerDisplay(true);
-            //delete tokens of other people
-             for (int i=0;i<cards.length;i++){
-                if (table.getCardToSlot()[cards[i]]!=null){
-                    int slot = table.getCardToSlot()[cards[i]];
-                    for (int j=0;j<players.length;j++){
-                        if (j!=id){
-                            table.removeToken(j,slot);
-                            players[j].howmanytokens--;
-                        }
+    public synchronized void testSet() {
+        synchronized(table){ 
+            int id = WaitingForSet.poll();
+            System.out.println("player" + id + " is testing a set");
+            int cards[] = new int[3];
+            Player player = players[id];
+            Integer[] SlotToCard = table.getSlotToCard();
+            for (int i=0;i<table.tokensPerPlayer[id].length;i++){
+                if (table.tokensPerPlayer[id][i]!=null){
+                    cards[i]=SlotToCard[table.tokensPerPlayer[id][i]];
+                }
+                else{
+                    // There is a token that does not correspond to a valid card
+                    player.wasSetLegal=false;
+                    for (int j=0;j<table.tokensPerPlayer[id].length;j++){
+                        if (table.tokensPerPlayer[id][j]!=null){
+                            table.removeToken(id, j);
+                            players[id].howmanytokens--;}
                     }
-                    table.removeCard(slot);}
-                else    {
-                    // the cards were changed so we need to clear the tokens
-                    for (int j=0;j<players.length;j++){
-                        if (j!=id){
-                            for (int k=0;k<3;k++){
-                                if (table.tokensPerPlayer[j][k]!=null && table.tokensPerPlayer[j][k]==cards[i]){
-                                    table.removeToken(j,cards[i]);
-                                    players[j].howmanytokens--;
-                                }
+                    return;
+                }
+            }
+            boolean isSet = env.util.testSet(cards);
+            player.wasSetLegal=true;
+            if (isSet){
+                System.out.println("isSet=" + isSet);
+                player.PointOrFreeze=true;
+                Integer[] CardToSlot = table.getCardToSlot();
+                for (int i=0;i<table.tokensPerPlayer.length;i++){
+                    for (int j=0;j<table.tokensPerPlayer[i].length;j++){
+                        for (int k=0;k<cards.length;k++){
+                            if (table.tokensPerPlayer[i][j]==CardToSlot[cards[k]]){
+                                table.removeToken(i, table.tokensPerPlayer[i][j]);
+                                players[i].howmanytokens--;
                             }
                         }
                     }
-                }}
-            return true;
+                }
+                for (int i=0;i<cards.length;i++){
+                    table.removeCard(CardToSlot[cards[i]]);
+                    
+            }
+            ShuffleDeck();
+            placeCardsOnTable();
+            //updateTimerDisplay(true);
+
+            }
+            else{
+                player.PointOrFreeze=false;
+                for (int i=0;i<table.tokensPerPlayer[id].length;i++){
+                    table.removeToken(id,table.tokensPerPlayer[id][i]);
+                }
+                players[id].howmanytokens=0;
+            }
+            player.actions.clear();
+            player.playerThread.interrupt();
+            System.out.println("player" + id + " is done testing a set");
+
         }
-        else{
-            System.out.println("Player " + id + " does not have a set");
-            players[id].penalty();
-            return false;
     }
-       
-}
     public void ShuffleDeck(){
         synchronized(deck){
         for (int i=0;i<deck.size();i++){
