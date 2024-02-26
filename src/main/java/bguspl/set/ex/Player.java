@@ -37,7 +37,7 @@ public class Player implements Runnable {
     /**
      * The thread representing the current player.
      */
-    private Thread playerThread;
+    public Thread playerThread;
 
     /**
      * The thread of the AI (computer) player (an additional thread used to generate key presses).
@@ -63,7 +63,12 @@ public class Player implements Runnable {
 
     private long freezeStartTime;
 
-    private ConcurrentLinkedQueue<Integer> actions;
+    public ConcurrentLinkedQueue<Integer> actions;
+
+    public int howmanytokens;
+    public boolean wasSetLegal;
+    public boolean PointOrFreeze;
+    
     /**
      * The class constructor.
      *
@@ -81,6 +86,7 @@ public class Player implements Runnable {
         this.human = human;
         this.isFrozen=false;
         this.actions = new ConcurrentLinkedQueue<>();
+        this.howmanytokens=0;
     }
 
     /**
@@ -113,7 +119,7 @@ public class Player implements Runnable {
                     keyPressed(randomKeyPress);
 
                 try {
-                    synchronized (this) { Thread.sleep(200); }
+                    synchronized (this) { Thread.sleep(0); }
                 } catch (InterruptedException ignored) {}
             }
             env.logger.info("thread " + Thread.currentThread().getName() + " terminated.");
@@ -154,74 +160,66 @@ public class Player implements Runnable {
      * @param slot - the slot corresponding to the key pressed.
      */
     public void keyPressed(int slot) {
-        
-        if (isFrozen) {
-            env.logger.warning( "Player " + id + " is frozen and cannot perform any action.");
-            return;
-        }
-        if (actionsIsFull()) {
+        Integer [] slotToCard=table.getSlotToCard();
+        if (howmanytokens==3 || slot<0 || slot>=table.countCards() || slotToCard[slot]==null){
             env.logger.warning( "Player " + id + " cannot perform any more actions.");
             return;
         }
-        env.logger.warning( "Player " + id + " placed into actions in slot :"+ slot);
+        
+        else if (isFrozen) {
+            env.logger.warning( "Player " + id + " is frozen and cannot perform any action.");
+            return;
+        }
+        else if (actionsIsFull()) {
+            env.logger.warning( "Player " + id + " cannot perform any more actions.");
+            return;
+        }
+        else{env.logger.warning( "Player " + id + " placed into actions in slot :"+ slot);
 
-        actions.add(slot);
+        actions.add(slot);}
 
     }
     private synchronized void processQueue(){
-        while (!actions.isEmpty() && !terminate){
+       
+        //check if we need to add token or remove token
+        if (!actions.isEmpty()&& ! terminate){
             boolean removed = false;
-            boolean isSetChecked = false;
-            env.logger.warning( "Player " + id + " before poll, action size:" + actions.size());
             int action = actions.poll();
-            env.logger.warning( "Player " + id + " after poll, action size:" + actions.size());
-            for (int i=0;i<table.tokensPerPlayer.length;i++){
+            System.out.println("Player " + id + " action: " + action +"howmanytokens" + howmanytokens);
+            for (int i=0;i<3;i++){
                 if ((table.tokensPerPlayer[id][i]!=null)&&(action == table.tokensPerPlayer[id][i])){
-                    table.removeToken(id, action);
-                    removed = true;
+                    removed =table.removeToken(id, action);
+                    howmanytokens--;
                     break;
                 }
             }
-            if (!removed){
-                boolean result = false;
-                table.placeToken(id, action);
-                if (table.tokensPerPlayer[id][2] != null){
-                    int[] tokens = Arrays.stream(table.tokensPerPlayer[id])
-                                        .mapToInt(Integer::intValue)
-                                        .toArray();
-                    Integer [] slotToCard = table.getSlotToCard();
-                    int[] cards = new int[tokens.length];
-                    for (int i=0;i<tokens.length;i++){
-                        if (slotToCard[tokens[i]]!=null)
-                            cards[i] = slotToCard[tokens[i]];
-                        else{
-                            // Dealer shuffled, remove all tokens and clear queue
-                            for (int j = 0; j < table.tokensPerPlayer[id].length; j++) {
-                                if (table.tokensPerPlayer[id][j] != null) {
-                                    table.removeToken(id, table.tokensPerPlayer[id][j]);
-                                }
-                            }
-                            actions.clear(); // Clear remaining actions after shuffle
-                            break;
-                        }
-                            
-                    }
-                    while (!isSetChecked){
-                        System.out.println("Player " + id + " is checking for set");
-                        result = dealer.testSet(cards,id);
-                        isSetChecked = true;
+            if (!removed && howmanytokens<3){
+                boolean placed = table.placeToken(id, action);
+                howmanytokens++;
+                if (howmanytokens==3 && placed){
+                    dealer.WaitingForSet.add(id);
+                    if (placed){
+                        try{
+                            synchronized(Thread.currentThread()){
+                                Thread.currentThread().wait();}
+                        }catch(InterruptedException e){
+                            Thread.currentThread().interrupt();
+                            if (wasSetLegal){
+                                if (PointOrFreeze){
+                                    point();}
+                                else{
+                                    penalty();}
 
-                    }
-                    for (int i=0;i<table.tokensPerPlayer[id].length;i++){
-                        if (table.tokensPerPlayer[id][i]!=null){
-                            table.removeToken(id, table.tokensPerPlayer[id][i]);
-                        }
+                            }
+                        wasSetLegal=false;
+                        };
                     }
                 }
             }
-
         }
     }
+        
+    
     
 
     /**
@@ -231,6 +229,7 @@ public class Player implements Runnable {
      * @post - the player's score is updated in the ui.
      */
     public void point() {
+        System.out.println("Player " + id + " scored a point.");
         int ignored = table.countCards(); // this part is just for demonstration in the unit tests
         score++;
         env.ui.setScore(id, score);
@@ -280,26 +279,6 @@ public class Player implements Runnable {
         isFrozen = false;
         env.ui.setFreeze(id, 0);
     }
-    /**
-     * Penalize a player and perform other related actions.
-     */
-    // public void penalty() {
-    //     env.ui.setFreeze(id, env.config.penaltyFreezeMillis);
-    //     env.logger.warning( "Player " + id + " is frozen and cannot perform any action.");
-    //     freezeStartTime=System.currentTimeMillis();
-    //     isFrozen=true;
-    //     while (System.currentTimeMillis() < freezeStartTime + env.config.penaltyFreezeMillis) {
-    //         env.logger.warning( "Player " + id + " is frozen and cannot perform any action.");
-    //         System.out.println("Player " + id + " is frozen and cannot perform any action.");
-    //         try{
-    //             Thread.sleep(env.config.penaltyFreezeMillis);}
-    //         catch (InterruptedException e){
-    //             Thread.currentThread().interrupt();
-    //         };
-    //     }
-    //     isFrozen=false;
-    //     env.ui.setFreeze(id, 0);
-    // }
 
 
     public int score() {

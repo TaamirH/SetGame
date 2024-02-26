@@ -56,6 +56,7 @@ public class Table {
 
         this(env, new Integer[env.config.tableSize], new Integer[env.config.deckSize]);
         tokensPerPlayer = new Integer[env.config.players][3];
+        System.out.println("length"+tokensPerPlayer.length);
     }
 
     /**
@@ -91,7 +92,7 @@ public class Table {
      *
      * @post - the card placed is on the table, in the assigned slot.
      */
-    public void placeCard(int card, int slot) {
+    public synchronized void placeCard(int card, int slot) {
         
         try {
             Thread.sleep(env.config.tableDelayMillis);
@@ -105,7 +106,7 @@ public class Table {
      * Removes a card from a grid slot on the table.
      * @param slot - the slot from which to remove the card.
      */
-    public void removeCard(int slot) {
+    public synchronized void removeCard(int slot) {
         try {
             Thread.sleep(env.config.tableDelayMillis);
         } catch (InterruptedException ignored) {}
@@ -120,23 +121,22 @@ public class Table {
      * @param player - the player the token belongs to.
      * @param slot   - the slot on which to place the token.
      */
-    public void placeToken(int player, int slot) {
+    public synchronized boolean placeToken(int player, int slot) {
         System.out.println("Player " + player + " placed token in slot " + slot);
       if (slot >= 0 && slot <= 11){  
       synchronized(tokensPerPlayer[player]){  
-        env.ui.placeToken(player, slot);
         for (int i=0;i<3;i++){
             if (tokensPerPlayer[player][i]==null){
                 tokensPerPlayer[player][i]=slot;
-                break;
+                env.ui.placeToken(player, slot);
+                return true;
             }
         }
 
         }
     }
-    else {
-        env.logger.info("slot " + slot + " is invalid.");
-    }}
+    return false;}
+    
 
     /**
      * Removes a token of a player from a grid slot.
@@ -144,13 +144,13 @@ public class Table {
      * @param slot   - the slot from which to remove the token.
      * @return       - true iff a token was successfully removed.
      */
-    public boolean removeToken(int player, int slot) {
+    public synchronized  boolean removeToken(int player, int slot) {
         System.out.println("Player " + player + " removed token in slot " + slot);
         synchronized (tokensPerPlayer[player]){
-            env.ui.removeToken(player, slot);
             for (int i=2;i>=0;i--){
                 if (tokensPerPlayer[player][i]!=null && tokensPerPlayer[player][i]==slot){
                     tokensPerPlayer[player][i]=null;
+                    env.ui.removeToken(player, slot);
                     return true;
                 }
             }
